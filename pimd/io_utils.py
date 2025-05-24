@@ -1,10 +1,10 @@
 # io_utils.py
 import numpy as np
 import re
+from scipy.fft import rfft, irfft
 
 # Boltzmann constant in atomic units (Hartree/Kelvin)
 kB_au = 3.166811563e-6
-
 
 # Conversion factors to Bohr (1 Bohr = 0.529177210903 Å)
 length_unit_to_bohr = {
@@ -66,6 +66,22 @@ atomic_masses_au = {
     'Rg': 503255.000, 'Cn': 507730.000, 'Nh': 512205.000, 'Fl': 516680.000, 'Mc': 521155.000,
     'Lv': 525630.000, 'Ts': 530105.000, 'Og': 534580.000
 }
+
+def temperature_to_beta(temperature_K):
+    """
+    Convert temperature in Kelvin to inverse temperature beta in atomic units.
+    
+    Parameters
+    ----------
+    temperature_K : float
+        Temperature in Kelvin
+
+    Returns
+    -------
+    beta : float
+        Inverse temperature in Hartree^-1 (atomic units)
+    """
+    return 1.0 / (temperature_K * kB_au)
 
 def get_atomic_masses_au(symbols):
     try:
@@ -151,3 +167,49 @@ def read_input_file(filename="input.txt"):
             raise ValueError(f"Missing mandatory parameter: {field}")
 
     return params
+
+def rr2nm(array):
+    P = array.shape[0]
+    shape = array.shape
+    flat = array.reshape(P, -1)
+    nm = np.zeros_like(flat, dtype=np.complex128)
+    nm[:] = rfft(flat, axis=0) * np.sqrt(2.0) / np.sqrt(P)
+    nm[0] /= np.sqrt(2.0)
+    if P > 1:
+        nm[-1] /= np.sqrt(2.0)
+    for j in range(1, P):
+        nm[j] *= -1
+    nm[0] /= np.sqrt(P)
+    return nm.real.reshape(shape)
+
+def nm2rr(array):
+    P = array.shape[0]
+    shape = array.shape
+    flat = array.reshape(P, -1).copy()
+    flat[0] *= np.sqrt(P)
+    for j in range(1, P):
+        flat[j] /= -1
+    if P > 1:
+        flat[-1] *= np.sqrt(2.0)
+    flat[0] *= np.sqrt(2.0)
+    flat *= np.sqrt(P) / np.sqrt(2.0)
+    rr = irfft(flat, n=P, axis=0)
+    return rr.real.reshape(shape)
+
+def freeRPProp(q_nm, p_nm, masses, dt, omegas):
+    n_beads, n_atoms, dim = q_nm.shape
+    m = masses.reshape(1, n_atoms, 1)
+
+    for k in range(n_beads):
+        omega = omegas[k]
+        if omega == 0:
+            q_nm[k] = q_nm[k] + dt * (p_nm[k] / m)  # centroid drift
+            continue
+        cos_ = np.cos(omega * dt)
+        sin_ = np.sin(omega * dt)
+        q = q_nm[k]
+        p = p_nm[k]
+        q_nm[k] = cos_ * q + sin_ / (omega * m) * p
+        p_nm[k] = cos_ * p - m * omega * sin_ * q
+
+    return q_nm, p_nm
