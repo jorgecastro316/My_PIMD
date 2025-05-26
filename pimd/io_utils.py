@@ -68,50 +68,41 @@ atomic_masses_au = {
 }
 
 def temperature_to_beta(temperature_K):
-    """
-    Convert temperature in Kelvin to inverse temperature beta in atomic units.
-    
-    Parameters
-    ----------
-    temperature_K : float
-        Temperature in Kelvin
+    temperature_K = np.float64(temperature_K)
+    return np.float64(1.0) / (temperature_K * np.float64(kB_au))
 
-    Returns
-    -------
-    beta : float
-        Inverse temperature in Hartree^-1 (atomic units)
-    """
-    return 1.0 / (temperature_K * kB_au)
 
 def get_atomic_masses_au(symbols):
     try:
-        return np.array([atomic_masses_au[s] for s in symbols])
+        return np.array([atomic_masses_au[s] for s in symbols], dtype=np.float64)
     except KeyError as e:
         raise KeyError(e.args[0])
 
-def parse_unit(comment_line, unit_type='length'):
-    if unit_type == 'length':
-        match = re.search(r'length_units\s*:\s*(\w+)', comment_line.lower())
+
+def parse_unit(comment_line, unit_type='position'):
+    if unit_type == 'position':
+        match = re.search(r'positions\s*:\s*(\w+)', comment_line.lower())
         if match:
             unit = match.group(1)
             if unit in length_unit_to_bohr:
-                return length_unit_to_bohr[unit]
+                return np.float64(length_unit_to_bohr[unit])
             else:
                 raise ValueError(f"Unknown length unit: {unit}")
-        return 1.0
+        return np.float64(1.0)
     elif unit_type == 'velocity':
-        match = re.search(r'velocity_units\s*:\s*(\S+)', comment_line.lower())
+        match = re.search(r'velocities\s*:\s*(\S+)', comment_line.lower())
         if match:
             unit = match.group(1)
             if unit in velocity_unit_to_au:
-                return velocity_unit_to_au[unit]
+                return np.float64(velocity_unit_to_au[unit])
             else:
                 raise ValueError(f"Unknown velocity unit: {unit}")
-        return 1.0
+        return np.float64(1.0)
     else:
         raise ValueError("Unsupported unit type")
 
-def load_xyz_file_with_units(filename, unit_type='length'):
+
+def load_xyz_file_with_units(filename, unit_type='position'):
     with open(filename, 'r') as f:
         lines = f.readlines()
 
@@ -119,7 +110,7 @@ def load_xyz_file_with_units(filename, unit_type='length'):
     comment_line = lines[1]
     atom_lines = lines[2:2 + n_atoms]
 
-    conversion = parse_unit(comment_line, unit_type=unit_type)
+    conversion = np.float64(parse_unit(comment_line, unit_type=unit_type))
 
     symbols = []
     coords = []
@@ -127,76 +118,123 @@ def load_xyz_file_with_units(filename, unit_type='length'):
         parts = line.strip().split()
         symbols.append(parts[0])
         coords.append([float(x) for x in parts[1:]])
-
-    coords = np.array(coords) * conversion
+    coords = np.array(coords, dtype=np.float64) * conversion
     return {'symbols': symbols, 'coords': coords}
 
 def read_input_file(filename="input.txt"):
     params = {
+        'timestep': 1.0,  # default in fs
         'velocity_file': None
     }
     with open(filename, 'r') as f:
         for line in f:
             if line.strip() == "" or line.strip().startswith("#"):
                 continue
-            keyval = line.strip().split()
-            key = keyval[0].lower()
-            value = keyval[1]
+            key, value = line.strip().split(None, 1)
+            key = key.lower()
             if key == 'geometry_file':
                 params['geometry_file'] = value
             elif key == 'velocity_file':
                 params['velocity_file'] = value
             elif key == 'temperature':
-                params['temperature'] = float(value)
+                params['temperature'] = np.float64(value)
             elif key == 'n_beads':
                 params['n_beads'] = int(value)
             elif key == 'n_steps':
                 params['n_steps'] = int(value)
             elif key == 'timestep':
-                timestep_val = float(value)
-                timestep_unit = keyval[2].lower() if len(keyval) > 2 else 'fs'
-                if timestep_unit not in time_unit_to_au:
-                    raise ValueError(f"Unknown time unit: {timestep_unit}")
-                params['timestep'] = timestep_val * time_unit_to_au[timestep_unit]
+                parts = value.strip().split()
+                if len(parts) == 2:
+                    val, unit = parts
+                    val = np.float64(val)
+                    unit = unit.lower()
+                    if unit in time_unit_to_au:
+                        params['timestep'] = val * time_unit_to_au[unit]
+                    else:
+                        raise ValueError(f"Unsupported time unit: {unit}")
+                else:
+                    # Assume it's already in atomic units
+                    params['timestep'] = np.float64(value)
+            elif key == 'force':
+                params['force'] = value
             else:
                 raise ValueError(f"Unknown input parameter: {key}")
 
-
-    for field in ['geometry_file', 'temperature', 'n_beads', 'timestep', 'n_steps']:
+    for field in ['geometry_file', 'temperature', 'n_beads', 'n_steps']:
         if field not in params:
             raise ValueError(f"Missing mandatory parameter: {field}")
 
     return params
 
+def parse_force_spec(force_line):
+    """
+    Parse a force specification string, e.g. 'harmonic 0.5' or 'double_well 1.0 0.5'
+
+    Parameters
+    ----------
+    force_line : str
+        Line containing the force type and its parameters
+
+    Returns
+    -------
+    force_type : str
+        Name of the force field
+    params : list of float
+        Associated parameters (if any)
+    """
+    parts = force_line.strip().split()
+    if not parts:
+        raise ValueError("Empty force field specification.")
+    force_type = parts[0].lower()
+    params = list(map(float, parts[1:])) if len(parts) > 1 else []
+    return force_type, params
+
+
 def rr2nm(array):
+    array = np.array(array, dtype=np.float64)  # Ensure float64 input
     P = array.shape[0]
     shape = array.shape
     flat = array.reshape(P, -1)
+    
     nm = np.zeros_like(flat, dtype=np.complex128)
     nm[:] = rfft(flat, axis=0) * np.sqrt(2.0) / np.sqrt(P)
+    
     nm[0] /= np.sqrt(2.0)
     if P > 1:
         nm[-1] /= np.sqrt(2.0)
+
     for j in range(1, P):
         nm[j] *= -1
+
     nm[0] /= np.sqrt(P)
-    return nm.real.reshape(shape)
+    return nm.real.reshape(shape).astype(np.float64)
 
 def nm2rr(array):
+    array = np.array(array, dtype=np.float64)
     P = array.shape[0]
     shape = array.shape
     flat = array.reshape(P, -1).copy()
+
     flat[0] *= np.sqrt(P)
     for j in range(1, P):
         flat[j] /= -1
+
     if P > 1:
         flat[-1] *= np.sqrt(2.0)
     flat[0] *= np.sqrt(2.0)
+
     flat *= np.sqrt(P) / np.sqrt(2.0)
     rr = irfft(flat, n=P, axis=0)
-    return rr.real.reshape(shape)
+    return rr.real.reshape(shape).astype(np.float64)
+
 
 def freeRPProp(q_nm, p_nm, masses, dt, omegas):
+    q_nm = np.array(q_nm, dtype=np.float64)
+    p_nm = np.array(p_nm, dtype=np.float64)
+    masses = np.array(masses, dtype=np.float64)
+    dt = np.float64(dt)
+    omegas = np.array(omegas, dtype=np.float64)
+
     n_beads, n_atoms, dim = q_nm.shape
     m = masses.reshape(1, n_atoms, 1)
 
@@ -205,11 +243,26 @@ def freeRPProp(q_nm, p_nm, masses, dt, omegas):
         if omega == 0:
             q_nm[k] = q_nm[k] + dt * (p_nm[k] / m)  # centroid drift
             continue
+
         cos_ = np.cos(omega * dt)
         sin_ = np.sin(omega * dt)
+
         q = q_nm[k]
         p = p_nm[k]
-        q_nm[k] = cos_ * q + sin_ / (omega * m) * p
-        p_nm[k] = cos_ * p - m * omega * sin_ * q
+
+        q_nm[k] = cos_ * q + (sin_ / (omega * m)) * p
+        p_nm[k] = cos_ * p - (m * omega * sin_) * q
 
     return q_nm, p_nm
+
+
+def print_initial_conditions(positions, velocities, masses, force_type, force_params, temperature, dt, n_steps):
+    print("\n=== INITIAL CONDITIONS ===")
+    print(f"Temperature (K):        {temperature:.2f}")
+    print(f"Time step (a.u.):       {dt:.6f}")
+    print(f"Number of steps:        {n_steps}")
+    print(f"Force field:            {force_type} {force_params if force_params else ''}")
+    print(f"Masses (a.u.):          {masses}")
+    print(f"Initial positions:      {positions}")
+    print(f"Initial velocities:     {velocities}")
+    print("===========================\n")

@@ -1,72 +1,41 @@
 import numpy as np
-from pimd.io_utils import get_atomic_masses_au, kB_au, load_xyz_file_with_units, parse_unit
+from pimd.io_utils import *
 
-def load_system(filename):
-    """
-    Load atomic symbols and positions from an XYZ file.
-    The second line may include a tag {length_units: ...} to convert coordinates to Bohr.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the .xyz file
-
-    Returns
-    -------
-    system : dict
-        Dictionary with keys 'symbols' and 'coords' (coordinates in Bohr)
-    dim : int
-        Spatial dimensionality inferred from coordinate columns
-    """
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-
-    n_atoms = int(lines[0])
-    comment_line = lines[1]
-    atom_lines = lines[2:2 + n_atoms]
-
-    length_to_bohr = parse_unit(comment_line, unit_type='length')
-
-    atoms = []
-    coords = []
-    for line in atom_lines:
-        parts = line.strip().split()
-        atoms.append(parts[0])
-        coords.append(list(map(float, parts[1:])))
-
-    coords = np.array(coords) * length_to_bohr
-    dim = coords.shape[1]
-
-    return {'symbols': atoms, 'coords': coords}, dim
-
-def initialize_ring_polymer(system, n_beads, temperature, velocity_file=None):
-    symbols = system['symbols']
-    coords = system['coords']
+def initialize_ring_polymer(geometry_file, velocity_file, temperature, n_beads):
+    # === Load geometry and infer dimensionality ===
+    geom = load_xyz_file_with_units(geometry_file, unit_type='position')
+    symbols = geom['symbols']
+    coords = np.array(geom['coords'], dtype=np.float64)
     n_atoms, dim = coords.shape
 
-    # Masses in atomic units with validation
+    # === Masses ===
     try:
-        masses = get_atomic_masses_au(symbols)  # shape (n_atoms,)
+        masses = np.array(get_atomic_masses_au(symbols), dtype=np.float64)  # shape (n_atoms,)
     except KeyError as e:
         raise ValueError(f"Unknown atomic symbol '{e.args[0]}' encountered. Please check the input file or update the mass table.")
 
-    # Initial positions: replicated across beads
-    positions = np.tile(coords, (n_beads, 1, 1))  # shape (n_beads, n_atoms, dim)
+    # === Positions ===
+    positions = np.tile(coords[None, :, :], (n_beads, 1, 1)).astype(np.float64)
 
-    # Initial velocities: shape (n_beads, n_atoms, dim)
+    # === Velocities ===
     if velocity_file:
         vel_data = load_xyz_file_with_units(velocity_file, unit_type='velocity')
         v_symbols = vel_data['symbols']
         if v_symbols != symbols:
-            raise ValueError("Velocity file symbols do not match input.xyz symbols.")
-        v_coords = vel_data['coords']  # shape (n_atoms, dim)
+            raise ValueError("Velocity file symbols do not match geometry file symbols.")
+        v_coords = np.array(vel_data['coords'], dtype=np.float64)
         if v_coords.shape[1] != dim:
-            raise ValueError("Velocity file dimensionality does not match coordinate file.")
-        velocities = np.tile(v_coords, (n_beads, 1, 1))
+            raise ValueError("Velocity file dimensionality does not match geometry file.")
+        velocities = np.tile(v_coords[None, :, :], (n_beads, 1, 1)).astype(np.float64)
     else:
-        velocities = np.zeros((n_beads, n_atoms, dim))
+        velocities = np.zeros((n_beads, n_atoms, dim), dtype=np.float64)
         for i in range(n_atoms):
             sigma = np.sqrt(kB_au * temperature / masses[i])
-            velocities[:, i, :] = np.random.normal(0.0, sigma, size=(n_beads, dim))
+            velocities[:, i, :] = np.random.normal(
+                loc=0.0,
+                scale=sigma,
+                size=(n_beads, dim)
+            ).astype(np.float64)
 
-    return positions, velocities, masses
+    return positions, velocities, masses, dim
+
