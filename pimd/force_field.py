@@ -1,67 +1,112 @@
 import numpy as np
+from pimd.utils import *
 
-def harmonic_force(positions, k=1.0):
-    """
-    Compute forces for a 1D harmonic oscillator: V(x) = 0.5 * k * x^2
+class Force_Field(object):
 
-    Parameters
-    ----------
-    positions : np.ndarray
-        Shape (n_beads, n_atoms, dim)
-    k : float
-        Force constant in a.u.
+    def __init__(self, force_type, force_params):
+        self.type = force_type 
+        self.params = force_params
 
-    Returns
-    -------
-    forces : np.ndarray
-        Same shape as positions
-    """
-    return -k * positions
+    def harmonic(self, q, n_beads, n_particles, n_dim, params):
+        K = params[0] if params else 1.0
+        forces = np.zeros_like(q)
+        potential_energies = np.zeros((n_beads, n_particles), float)
 
-def double_well_force(positions, a=1.0, b=1.0):
-    """
-    Compute forces for a 1D double-well potential: V(x) = a*x^4 - b*x^2
+        for i in range(n_particles):
+            start = i * n_dim
+            end = (i + 1) * n_dim
 
-    Parameters
-    ----------
-    positions : np.ndarray
-        Shape (n_beads, n_atoms, dim)
-    a : float
-        Quartic coefficient
-    b : float
-        Quadratic coefficient
+            # shape (n_beads, n_dim) for this particle across beads
+            q_i = q[:, start:end]
 
-    Returns
-    -------
-    forces : np.ndarray
-    """
-    return - (4 * a * positions**3 - 2 * b * positions)
+            # Force: F = -K * q
+            forces[:, start:end] = -K * q_i
 
-def zero_force(positions):
-    """
-    Return zero forces (used for testing free ring polymer propagation).
+            # Potential: 0.5 * K * |q|^2 (per particle, per bead)
+            potential_energies[:, i] = 0.5 * K * np.sum(q_i**2, axis=1)
 
-    Parameters
-    ----------
-    positions : np.ndarray
+        return forces, potential_energies
 
-    Returns
-    -------
-    forces : np.ndarray
-    """
-    return np.zeros_like(positions)
+    def double_well(self, q, n_beads, n_particles, n_dim, params):
+        D = params[0] if params else 1.0
+        forces = np.zeros_like(q)
+        potential_energies = np.zeros((n_beads, n_particles), float)
+
+        for i in range(n_particles):
+            start = i * n_dim
+            end = (i + 1) * n_dim
+            q_i = q[:, start:end]  # shape (n_beads, n_dim)
+
+            # Force: F = -∇V = -D * (-4q^3 + 2q)
+            forces[:, start:end] = -D * (-4 * q_i**3 + 2 * q_i)
+
+            # Potential: D * (q^4 - q^2)
+            potential_energies[:, i] = D * np.sum(q_i**4 - q_i**2, axis=1)
+
+        return forces, potential_energies
 
 
-def force_field(force_type, params):
-    force_type = force_type.lower()
-    if force_type == "harmonic":
-        k = params[0] if params else 1.0
-        return lambda x: harmonic_force(x, k=k)
-    elif force_type == "double_well":
-        a = params[0] if len(params) > 0 else 1.0
-        b = params[1] if len(params) > 1 else 1.0
-        return lambda x: double_well_force(x, a=a, b=b)
-    elif force_type == "zero":
-        return zero_force
-    else:
-        raise ValueError(f"Unknown force type: {force_type}")
+    def double_well_asym(self, q, n_beads, n_particles, n_dim, params):
+        D = params[0] if params else 1.0
+        forces = np.zeros_like(q)
+        potential_energies = np.zeros((n_beads, n_particles), float)
+
+        for i in range(n_particles):
+            start = i * n_dim
+            end = (i + 1) * n_dim
+            q_i = q[:, start:end]  # shape (n_beads, n_dim)
+
+            # Force: -D * (4q^3 - 2q + 1)
+            forces[:, start:end] = -D * (4 * q_i**3 - 2 * q_i + 1)
+
+            # Potential: D * (q^4 - q^2 + q)
+            potential_energies[:, i] = D * np.sum(q_i**4 - q_i**2 + q_i, axis=1)
+
+        return forces, potential_energies
+
+    
+    def zero_force(self,q,n_beads, n_particles, n_dim):
+        forces = np.zeros((n_beads, n_dim*n_particles),float)
+        potential_energies = np.zeros((n_beads,n_particles),float)
+        return(forces,potential_energies)
+ 
+
+    def eq_force_function(self, q, n_beads, n_particles, n_dim):
+        forces, potential_energies = self.ff( q, n_beads, n_particles, n_dim, self.type, self.params)        
+
+        return forces, potential_energies
+
+    def ff(self, q, n_beads, n_particles, n_dim, type, params):
+        
+        if type == 'harmonic':
+            forces, potential_energies = self.harmonic(q, n_beads, n_particles, n_dim, params)
+        
+        elif type == 'double_well':
+            forces, potential_energies = self.double_well(q, n_beads, n_particles, n_dim, params)
+        
+        elif type == 'double_well_asym':
+            forces, potential_energies = self.double_well_asym(q, n_beads, n_particles, n_dim, params)
+
+        elif type == "zero":
+            forces, potential_energies = self.zero_force(q, n_beads, n_particles, n_dim)
+        
+        else:
+            raise ValueError("Unknown force field type: {}".format(type))
+        
+        return forces, potential_energies
+
+    
+    #def noneq_force_function(self, q, n_beads, n_particles, n_dim, lambda_t):
+        #print(lambda_t)
+    #    potential_0 = self.potential[0].split()
+    #    potential_1 = self.potential[1].split()
+        
+    #    forces_0,potential_energies_0 = self.ff(q, n_beads, n_particles, n_dim, potential_0)
+    #    forces_1,potential_energies_1 = self.ff(q, n_beads, n_particles, n_dim, potential_1)
+        
+    #    forces = (lambda_t)*forces_1 + (1 - lambda_t)*forces_0
+    #    potential_energies = (lambda_t)*potential_energies_1 + (1 - lambda_t)*potential_energies_0
+        
+    #    pot = (1/n_beads)*np.sum(potential_energies)
+        #print(pot)
+    #    return forces, potential_energies, pot 

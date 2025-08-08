@@ -1,56 +1,106 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct  9 18:44:11 2022
+
+@author: castrojo
+"""
+
+from pimd.system import System
+from pimd.force_field import Force_Field
+from pimd.simulation import Simulation
+from pimd.thermostat import Thermostat
+#from pimd.integrator import Integrator
+#from pimd.thermostat import Thermostat
+from pimd.utils import *
+from scipy.constants import *
 import numpy as np
-from pimd.io_utils import *
-from pimd.system import *
-from pimd.integrator import integrate_one_step
-from pimd.force_field import *
-
-def main():
-    # === Read input ===
-    inp = read_input_file("input.txt")
-    geometry_file = inp["geometry_file"]
-    velocity_file = inp.get("velocity_file")
-    temperature = inp["temperature"]
-    n_beads = inp["n_beads"]
-    n_steps = inp["n_steps"]
-    dt = inp["timestep"]  # already in a.u.
-
-    # === Load and initialize ring polymer ===
-    positions, velocities, masses, dim = initialize_ring_polymer(
-        geometry_file=geometry_file,
-        velocity_file=velocity_file,
-        temperature=temperature,
-        n_beads=n_beads
-    )
 
 
-    # === Parse and select force function ===
-    force_type, force_params = parse_force_spec(inp.get("force", "zero"))
-    force_fn = force_field(force_type, force_params)
+# === Read input ===
+inp = read_input_file("input.txt")
 
-    # === Print initial conditions ===
-    print_initial_conditions(
-        positions=positions,
-        velocities=velocities,
-        masses=masses,
-        force_type=force_type,
-        force_params=force_params,
-        temperature=temperature,
-        dt=dt,
-        n_steps=n_steps
-    )
+def parse_file_field(value):
+    if isinstance(value, str):
+        tokens = value.strip().split()
+        return tokens if len(tokens) > 1 else tokens[0]
+    return value
 
-    # === Time evolution ===
-    for step in range(1,n_steps+1): # 1-based indexing for steps since step 0 is initial state
-        positions, velocities, forces = integrate_one_step(
-            method="path_integral",  # or "basic"
-            positions=positions,
-            velocities=velocities,
-            masses=masses,
-            forces_fn=force_fn,
-            dt=dt,
-            temperature=temperature
-        )
-        print(f"Step {step:4d}", positions)
+geometry_file = parse_file_field(inp["geometry_file"])
+velocity_file = parse_file_field(inp.get("velocity_file", None))
+n_beads = inp["n_beads"]
+system_temperature = inp["temperature"]
+simulation_temperature = system_temperature * n_beads  # PIMD temperature
+timestep = inp["timestep"]
+#timestep = 0.5
+n_steps = inp["n_steps"]
+force_type, force_params = parse_force_spec(inp.get("force", "zero"))
+prefix = inp.get("prefix", "simulation")
+thermostat_type = inp.get("thermostat", None)
+tau = inp.get("tau", 1)
+#tau = 0.5
+#Initialze random number generator
+seed = inp.get("seed", 420)
+#rng = random_number_generator(seed)
+rng = np.random.mtrand.RandomState(seed)
+#rng=None
+#Set the system
+system = System(geometry_file, n_beads, rng, velocity_file, simulation_temperature)
+print(f"System initialized with {system.n_atoms} atoms, {system.n_beads} beads, and {system.n_dim} dimensions.")
+print(f"Initial positions: {system.positions}",np.shape(system.positions))
+print(f"Initial velocities: {system.velocities}",np.shape(system.velocities))
+print(f"Initial centroid positions: {system.q_centroid}",np.shape(system.q_centroid))
+print(f"Initial centroid velocities: {system.v_centroid}",np.shape(system.v_centroid))
+print(f"Initial masses: {system.masses}",np.shape(system.masses))
+print(f"Initial forces: {system.forces}",np.shape(system.forces))
 
-if __name__ == "__main__":
-    main()
+#Set the force field
+
+force_field = Force_Field(force_type, force_params)
+
+#Set Thermostat
+#thermostat = Thermostat(simulation_temperature,tau,thermostat_type,seed)
+thermostat = Thermostat(simulation_temperature,tau,thermostat_type,rng)
+#Set the simulation.
+simulation = Simulation(system,simulation_temperature,timestep,force_field,thermostat,prefix)
+
+#Run simulation
+simulation.run_PIMD(n_steps)
+#simulation.run_PIMC(n_steps)
+#simulation.run_PIMC_adaptive(n_steps)
+#simulation.run_PIMC_adaptive_advanced(n_steps)
+
+#simulation.run_PIMC_adaptive_staging(n_steps)
+
+# Constantes físicas en unidades atómicas
+kB_Hartree_per_K = 3.166811563e-6  # Boltzmann en Hartree/K
+hbar = 1.0  # En unidades atómicas
+
+def classical_PE(T, K, ndim):
+    """
+    Energía potencial media clásica de un oscilador armónico
+    T : temperatura en Kelvin
+    K : constante del resorte en Hartree/bohr²
+    ndim : número de dimensiones
+    """
+    beta = 1 / (kB_Hartree_per_K * T)
+    return ndim / (2 * beta)
+
+def quantum_PE(T, K, ndim, m=1837.1526):
+    """
+    Energía potencial media cuántica de un oscilador armónico
+    T : temperatura en Kelvin
+    K : constante del resorte en Hartree/bohr²
+    ndim : número de dimensiones
+    m : masa en unidades atómicas (por defecto: protón)
+    """
+    omega = np.sqrt(K / m)
+    beta = 1 / (kB_Hartree_per_K * T)
+    return ndim * (0.5 * hbar * omega / np.tanh(0.5 * beta * hbar * omega))
+
+T = 300  # Kelvin
+K = 1.0  # Hartree/bohr²
+ndim = 1
+
+print("Clásica:", classical_PE(T, K, ndim))
+print("Cuántica:", quantum_PE(T, K, ndim))

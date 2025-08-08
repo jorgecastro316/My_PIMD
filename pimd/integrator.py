@@ -1,60 +1,289 @@
 import numpy as np
-from pimd.io_utils import *
+from pimd.utils import *   
 
-def basic_verlet(positions, momenta, masses, forces_fn, dt):
-    """
-    Perform one step of the basic Verlet integrator using momenta.
-    """
-    positions = positions.astype(np.float64, copy=False)
-    momenta = momenta.astype(np.float64, copy=False)
-    masses = masses.astype(np.float64, copy=False)
+class Integrator(object):
+    def __init__(self, temperature, timestep, force_field, mode=None):
+        self.temperature = temperature
+        self.timestep    = timestep
+        self.force_field = force_field
+        self.mode        = mode
 
-    forces = forces_fn(positions)
-    momenta += 0.5 * dt * forces
-    positions += dt * momenta / masses.reshape(1, -1, 1)
-    forces = forces_fn(positions)
-    momenta += 0.5 * dt * forces
-    return positions, momenta, forces
+    def Propagate_Ring_Polymer(self, p, q, f, n_beads, n_atoms, n_dim, masses):
+        dt = self.timestep
 
-def path_integral_propagator(positions, momenta, masses, dt, forces_fn, beta):
-    positions = positions.astype(np.float64, copy=False)
-    momenta = momenta.astype(np.float64, copy=False)
-    masses = masses.astype(np.float64, copy=False)
+        # — 1) First half‐kick under external forces —
+        #print("p before first half-step:", p)
+        #print ("DEBUG p before first half-step:", p)
+        #print ("DEBUG q before first half-step:", q)
+        #print ("DEBUG f before first half-step:", f)
+        p = p + 0.5 * f * dt
+        #print("p  after first half-step:", p)
 
-    forces = forces_fn(positions)
-    momenta += 0.5 * dt * forces
+        # — 2) Transform Cartesian → normal modes (using the 1D‐based routines) —
+        q_nm = rr2nm(q)
+        p_nm = rr2nm(p)
+        #print("DEBUG p_nm (pre-prop):", p_nm)
+        #print("DEBUG q_nm (pre-prop):", q_nm)
 
-    q_nm = rr2nm(positions)
-    p_nm = rr2nm(momenta)
+        # — 3) Build beta using kB_au, then W[k] using the reference formula —
+        beta = 1.0 / (kB_au * self.temperature)   # temperature in Kelvin to beta in a.u.⁻¹
+        #print(beta,self.temperature)
+        #beta=1
+        #omega_k = build_omega_reference(n_beads, beta, hbar=1.0)
+        #print("DEBUG W_k =", omega_k)
+        omega_k = omega_Cmatrix(n_beads, beta)
+        # — 4) Free‐RP propagation in normal modes —
 
-    n_beads = positions.shape[0]
-    omegas = 2.0 * np.pi * np.arange(n_beads, dtype=np.float64) / beta
+        p_nm2, q_nm2 = propagate_normal_modes_general(p_nm, q_nm, omega_k, dt, masses, n_dim)
+        #print("DEBUG p_nm (post-prop):", p_nm2)
+        #print("DEBUG q_nm (post-prop):", q_nm2)
 
-    q_nm, p_nm = freeRPProp(q_nm, p_nm, masses, dt, omegas)
+        # — 5) Transform back to Cartesian —
+        p = nm2rr(p_nm2)
+        q = nm2rr(q_nm2)
+        #print("p after back-transform:", p)
+        #print("q after back-transform:", q)
 
-    positions = nm2rr(q_nm)
-    momenta = nm2rr(p_nm)
+        # — 6) Second half‐kick under external forces —
+        forces, potential_energies = self.force_field.eq_force_function(
+            q, n_beads, n_atoms, n_dim
+        )
+        p = p + 0.5 * forces * dt
+        #print("p after second half-step:", p)
 
-    forces = forces_fn(positions)
-    momenta += 0.5 * dt * forces
+        return p, q, forces, potential_energies
 
-    return positions, momenta, forces
 
-def integrate_one_step(method, positions, velocities, masses, forces_fn, dt, temperature):
-    positions = positions.astype(np.float64, copy=False)
-    velocities = velocities.astype(np.float64, copy=False)
-    masses = masses.astype(np.float64, copy=False)
+    def step_NVE(self, system, lambda_t=None):
+        q       = system.positions
+        v       = system.velocities
+        f       = system.forces
+        n_dim   = system.n_dim
+        n_atoms = system.n_atoms
+        n_beads = system.n_beads
+        masses  = system.masses
 
-    momenta = velocities * masses.reshape(1, -1, 1)
+        # Convert velocities to momenta
+        p = velocities_to_momenta(v, masses, n_atoms, n_dim)
+        
+        #print("Momenta before propagation: ",p)
+        # PIMD propagation step
+        p, q, f, potential_energies = self.Propagate_Ring_Polymer(
+            p, q, f, n_beads, n_atoms, n_dim, masses
+        )
 
-    method = method.lower()
-    if method in ['basic', 'verlet', 'velocity_verlet']:
-        positions, momenta, forces = basic_verlet(positions, momenta, masses, forces_fn, dt)
-    elif method in ['pi', 'path_integral']:
-        beta = temperature_to_beta(temperature)
-        positions, momenta, forces = path_integral_propagator(positions, momenta, masses, dt, forces_fn, beta)
-    else:
-        raise ValueError(f"Unknown integrator method: {method}")
+        # Convert momenta to velocities
+        v = momenta_to_velocities(p, masses, n_atoms, n_dim)
 
-    velocities = momenta / masses.reshape(1, -1, 1)
-    return positions, velocities, forces
+        # Compute centroid, energies, etc. (as before)
+        qc = np.mean(q, axis=0, keepdims=True)
+        vc = np.mean(v, axis=0, keepdims=True)
+        #print(np.shape(q), np.shape(v),np.shape(qc), np.shape(f))
+        pot, kin, etot, E_pot, E_kin, E_tot, system_T, internal_pot = compute_energetics(
+                q, v, qc, f, potential_energies,
+                masses, self.temperature,n_beads, n_atoms, n_dim
+        )
+
+        # Update the system object
+        update_system(
+            system, q, v, qc,vc,f, system_T,
+            pot, kin, etot, E_pot, E_kin, E_tot, internal_pot
+        )
+        
+    def step_PILE_L(self, system, thermostat, lambda_t=None):
+        q       = system.positions           # (n_beads, n_atoms, n_dim)
+        v       = system.velocities          # (n_beads, n_atoms, n_dim)
+        f       = system.forces              # (n_beads, n_atoms * n_dim)
+        n_dim   = system.n_dim
+        n_atoms = system.n_atoms
+        n_beads = system.n_beads
+        masses  = system.masses              # length‐n_atoms array
+        
+        # 1) Convert velocities to momenta (shape (n_beads, n_atoms*n_dim))
+        
+        p = velocities_to_momenta(v, masses, n_atoms, n_dim)
+                
+        # 2) FIRST HALF-STEP OF PILE-L in normal-mode space (vectorized transform + loop over columns):
+        p_nm = rr2nm(p)  # shape (n_beads, n_atoms * n_dim)
+        
+        for col in range(0,n_atoms * n_dim):
+            atom_idx = col // n_dim
+            p_nm[:, col:col+1] = thermostat.PILE_L(
+                p_nm[:, col:col+1],     # (n_beads, 1)
+                self.timestep,
+                masses[atom_idx],        # pass the correct mass for that atom
+                n_beads
+            )
+        #print('after 1st',p_nm)       
+        p_first_half = nm2rr(p_nm)  # back to (n_beads, n_atoms * n_dim)
+        #p_first_half = p
+        #print("p_flat after first half-step PILE_L:", np.shape(p_flat))
+        # 3) RING-POLYMER PROPAGATION
+        
+        p_new, q_new, f_new, potential_energies = self.Propagate_Ring_Polymer(
+            p_first_half, q, f,n_beads, n_atoms, n_dim, masses)
+
+        # 4) SECOND HALF-STEP OF PILE-L (same pattern)
+        p_nm_new = rr2nm(p_new)
+        #print('before 2nd',p_nm_new)
+        for col in range(n_atoms * n_dim):
+            atom_idx = col // n_dim
+            p_nm_new[:, col:col+1] = thermostat.PILE_L(
+                p_nm_new[:, col:col+1],
+                self.timestep,
+                masses[atom_idx],
+                n_beads
+            )
+        #print('after 2nd',p_nm_new)
+        p_second_half = nm2rr(p_nm_new)
+
+        # 5) Convert momenta → velocities, compute centroid/energetics, update system
+        v_new = momenta_to_velocities(p_second_half, masses, n_atoms, n_dim)
+        #print('v new',v_new)
+        qc = np.mean(q_new, axis=0, keepdims=True)
+        vc = np.mean(v_new, axis=0, keepdims=True)
+        
+        pot, kin, etot, E_pot, E_kin, E_tot, system_T, internal_pot = compute_energetics(
+            q_new, v_new, qc, f_new, potential_energies,
+            masses, self.temperature, n_beads, n_atoms, n_dim
+        )
+
+        update_system(
+            system, q_new, v_new, qc, vc, f_new, system_T,
+            pot, kin, etot, E_pot, E_kin, E_tot, internal_pot
+        )
+        return
+
+    def step_PILE_G(self,system,thermostat,lambda_t = None):
+
+        q       = system.positions           # (n_beads, n_atoms, n_dim)
+        v       = system.velocities          # (n_beads, n_atoms, n_dim)
+        f       = system.forces              # (n_beads, n_atoms * n_dim)
+        n_dim   = system.n_dim
+        n_atoms = system.n_atoms
+        n_beads = system.n_beads
+        masses  = system.masses              # length‐n_atoms array
+        dof = n_atoms * n_dim
+        # 1) Convert velocities to momenta (shape (n_beads, n_atoms*n_dim))
+        
+        p = velocities_to_momenta(v, masses, n_atoms, n_dim)
+        
+        # 2)  First HALF-STEP OF PILE-G 
+        p_nm = rr2nm(p)
+        #Compute K from the momenta of the centroid for each atom
+        K = 0.0
+        for i in range(n_atoms):
+            for d in range(n_dim):
+                idx = i * n_dim + d
+                p_centroid = p_nm[0, idx]   # Centroid-mode momentum for that DOF
+                m = masses[i]
+                K += 0.5 * (p_centroid ** 2) / m
+
+        #print('K0', K)
+        #Thermalization of momenta 1st half-step
+        for col in range(0,n_atoms * n_dim):
+            atom_idx = col // n_dim
+            p_nm[:, col:col+1] = thermostat.PILE_G(
+                p_nm[:, col:col+1],     # (n_beads, 1)
+                self.timestep,
+                masses[atom_idx],        # pass the correct mass for that atom
+                n_beads,
+                dof,
+                K
+            )
+        
+        p_first_half = nm2rr(p_nm)        
+        #print('p_first_half',p_first_half)
+        # 3) RING-POLYMER PROPAGATION
+        
+        p_new, q_new, f_new, potential_energies = self.Propagate_Ring_Polymer(
+            p_first_half, q, f,n_beads, n_atoms, n_dim, masses)
+
+        # 4) SECOND HALF-STEP OF PILE-L (same pattern)
+        p_nm_new = rr2nm(p_new)
+        #Compute K from the momenta of the centroid for each atom
+        K = 0.0
+        for i in range(n_atoms):
+            for d in range(n_dim):
+                idx = i * n_dim + d
+                p_centroid = p_nm_new[0, idx]   # Centroid-mode momentum for that DOF
+                m = masses[i]
+                K += 0.5 * (p_centroid ** 2) / m
+
+        #print('before 2nd',p_nm_new)
+        
+        for col in range(n_atoms * n_dim):
+            atom_idx = col // n_dim
+            p_nm_new[:, col:col+1] = thermostat.PILE_G(
+                p_nm_new[:, col:col+1],     # (n_beads, 1)
+                self.timestep,
+                masses[atom_idx],        # pass the correct mass for that atom
+                n_beads,
+                dof,
+                K
+            )
+        #print('after 2nd',p_nm_new)
+        p_second_half = nm2rr(p_nm_new)
+
+        # 5) Convert momenta → velocities, compute centroid/energetics, update system
+        v_new = momenta_to_velocities(p_second_half, masses, n_atoms, n_dim)
+        #print('v new',v_new)
+        qc = np.mean(q_new, axis=0, keepdims=True)
+        vc = np.mean(v_new, axis=0, keepdims=True)
+        
+        pot, kin, etot, E_pot, E_kin, E_tot, system_T, internal_pot = compute_energetics(
+            q_new, v_new, qc, f_new, potential_energies,
+            masses, self.temperature, n_beads, n_atoms, n_dim
+        )
+
+        update_system(
+            system, q_new, v_new, qc, vc, f_new, system_T,
+            pot, kin, etot, E_pot, E_kin, E_tot, internal_pot
+        )
+        return
+
+    def step_Andersen(self, system, thermostat, lambda_t=None):
+        q       = system.positions           # (n_beads, n_atoms, n_dim)
+        v       = system.velocities          # (n_beads, n_atoms, n_dim)
+        f       = system.forces              # (n_beads, n_atoms * n_dim)
+        n_dim   = system.n_dim
+        n_atoms = system.n_atoms
+        n_beads = system.n_beads
+        masses  = system.masses              # length‐n_atoms array
+        
+        # 1) Convert velocities → flattened momenta (shape (n_beads, n_atoms*n_dim))
+        p = velocities_to_momenta(v, masses, n_atoms, n_dim)
+        #print("shape p ",np.shape(p))        
+        p_nm = rr2nm(p)
+        p = nm2rr(p_nm)
+        # 2) FIRST HALF-STEP 
+        p_first_half = thermostat.Andersen(p, masses, self.timestep)
+
+        # 3) RING-POLYMER PROPAGATION 
+        
+        p_new, q_new, f_new, potential_energies = self.Propagate_Ring_Polymer(
+            p_first_half, q, f,n_beads, n_atoms, n_dim, masses)
+
+        p_2nd_nm = rr2nm(p_new)
+        p_new = nm2rr(p_2nd_nm)
+        # 4) SECOND HALF-STEP 
+        p_second_half = thermostat.Andersen(p_new, masses, self.timestep)
+        # 5) Convert momenta → velocities, compute centroid/energetics, update system
+        
+        v_new = momenta_to_velocities(p_second_half, masses, n_atoms, n_dim)
+        
+        qc = np.mean(q_new, axis=0, keepdims=True)
+        vc = np.mean(v_new, axis=0, keepdims=True)
+        
+        pot, kin, etot, E_pot, E_kin, E_tot, system_T, internal_pot = compute_energetics(
+            q_new, v_new, qc, f_new, potential_energies,
+            masses, self.temperature, n_beads, n_atoms, n_dim
+        )
+
+        update_system(
+            system, q_new, v_new, qc, vc, f_new, system_T,
+            pot, kin, etot, E_pot, E_kin, E_tot, internal_pot
+        )
+        return    
+
+        
