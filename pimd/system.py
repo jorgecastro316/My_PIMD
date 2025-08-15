@@ -6,7 +6,7 @@ class System(object):
 
     def initialize(self, geometry_file, n_beads, rng, velocity_file=None,temperature=None):
         self.n_beads = n_beads
-
+        print("Temperature:", temperature)
         # === Handle multiple geometry files (one per bead) or single file ===
         if isinstance(geometry_file, list):
             if len(geometry_file) != n_beads:
@@ -66,32 +66,14 @@ class System(object):
             # No velocity file → sample from Boltzmann at 'temperature' using 'seed'
             # ---------------------------------------------------------
             # Create a reproducible RNG with the given seed (if provided)
-
-            # Pre‐allocate the array
-            velocities = np.zeros((n_beads, n_atoms * n_dim), dtype=np.float64)
-             
-            # For each atom i, we draw a Gaussian with sigma_i = sqrt(kB_au * T / m_i) in each Cartesian direction
-            # First compute per‐atom sigma:
             
-            #temperature is reuqired for initialization if no velocity file is given
-            #But it is not an intirinsic property of the system, so it can be set later
-
             if temperature is None:
                 raise ValueError("Temperature must be provided if no velocity file is given.")
-            masses = np.array(self.masses, dtype=np.float64).reshape(n_atoms)  # shape = (n_atoms,)
-            sigma_per_atom = np.sqrt(kB_au * temperature / masses)        # shape = (n_atoms,)
 
-            # Now loop over beads and atoms to fill velocities
-            for b in range(n_beads):
-                # shape (n_atoms, n_dim) for this bead
-                v_bead = np.zeros((n_atoms, n_dim), dtype=np.float64)
-                for i in range(n_atoms):
-                    sigma = sigma_per_atom[i]
-                    # Draw n_dim independent normal variables with std=σ, mean=0
-                    
-                    v_bead[i, :] = self.rng.normal(loc=0.0, scale=sigma, size=(n_dim,))
-                # Flatten to (n_atoms*n_dim,) and store
-                velocities[b] = v_bead.flatten()
+            masses = np.array(self.masses, dtype=np.float64).reshape(n_atoms)  # shape = (n_atoms,)
+            
+            velocities = thermal(n_beads,n_atoms,n_dim,temperature, masses) 
+            
         # Debugging
         # velocities = np.array([[2.02600e-04],[3.22554e-03],[-7.77200e-04],[1.23300e-03]])        
 
@@ -110,7 +92,6 @@ class System(object):
         self.int_pot = 0
         self.temperature = 0
 
-        
 
     #For simulation initialization only
     

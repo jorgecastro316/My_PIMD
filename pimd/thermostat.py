@@ -13,8 +13,8 @@ class Thermostat(object):
     def PILE_L(self, p_nm, time_step, mass, n_beads):
         #temperature = 300
         #print('C1' ,np.exp(-0.5*time_step/self.tau),-0.5*time_step/self.tau)        
-        beta = temperature_to_beta(self.temperature) 
-        Wp = 1/beta
+        beta_n = temperature_to_beta(self.temperature) 
+        Wp = 1/beta_n
         #print('p',p_nm,np.shape(p_nm))
 
         #Calculate Wk
@@ -44,7 +44,7 @@ class Thermostat(object):
         for k in range(n_beads):
             #print('C2',np.sqrt(Nbeads*1/B)*C2_vec[k])
             #print(C1_vec[k],p_nm[k],C1_vec[k]*p_nm[k])
-            new_p_nm[k] = C1_vec[k]*p_nm[k] + np.sqrt(mass/beta)*C2_vec[k]*E_noise[k]
+            new_p_nm[k] = C1_vec[k]*p_nm[k] + np.sqrt(mass/beta_n)*C2_vec[k]*E_noise[k]
         
         #print('new_p',new_p_nm,np.shape(new_p_nm))
         #return p_nm
@@ -52,10 +52,10 @@ class Thermostat(object):
 
     def PILE_G(self, p_nm, time_step, mass, n_beads, dof, K):
         
-        beta = temperature_to_beta(self.temperature)
+        beta_n = temperature_to_beta(self.temperature)
         #beta = 1
         #print('beta',beta)
-        Wp = 1/beta
+        Wp = 1/beta_n
         #print('p',p_nm)
 
         #Calculate Wk
@@ -81,12 +81,12 @@ class Thermostat(object):
         r1 = self.rng.standard_normal()
         #rg = 0  #I am applying the SVR to a single atom at the time, so rg = 0
         rg = self.rng.chisquare(dof - 1) if dof > 1 else 0.0
-        alpha2 = C + (((1 - C) * (r1**2 + rg)) / (2 * K * beta)) + 2 * r1 * np.sqrt((C * (1 - C)) / (2 * beta * K))
+        alpha2 = C + (((1 - C) * (r1**2 + rg)) / (2 * K * beta_n)) + 2 * r1 * np.sqrt((C * (1 - C)) / (2 * beta_n * K))
 
         
         alpha = np.sqrt(alpha2)
         
-        if (r1 + np.sqrt(2 * K / (0.5*(1/beta)) * C / (1 - C))) < 0:
+        if (r1 + np.sqrt(2 * K / (0.5*(1/beta_n)) * C / (1 - C))) < 0:
             alpha *= -1
 
         #print('alpha',alpha)
@@ -102,23 +102,10 @@ class Thermostat(object):
         for k in range(1,n_beads):        
             E_noise = self.rng.standard_normal()
             #print('E_noise',E_noise)
-            new_p_nm[k] = C1_vec[k]*p_nm[k] + np.sqrt(mass/beta)*C2_vec[k]*E_noise        
+            new_p_nm[k] = C1_vec[k]*p_nm[k] + np.sqrt(mass/beta_n)*C2_vec[k]*E_noise        
 
         #print('palph ',new_p_nm,np.shape(new_p_nm))
         return new_p_nm
-        #E_noise = self.rng.standard_normal(np.shape(p_nm))
-        #print('E_noise',E_noise,np.shape(E_noise))
-        
-        #Update velocities
-        #new_p_nm = np.zeros(np.shape(p_nm))
-        #for k in range(n_beads):
-            #print('C2',np.sqrt(Nbeads*1/B)*C2_vec[k])
-            #print(C1_vec[k],p_nm[k],C1_vec[k]*p_nm[k])
-        #    new_p_nm[k] = C1_vec[k]*p_nm[k] + np.sqrt(mass/beta)*C2_vec[k]*E_noise[k]
-        
-        #print('new_p',new_p_nm,np.shape(new_p_nm))
-        #return p_nm
-        #return new_p_nm
 
 
     def Andersen(self,p, masses, dt):
@@ -150,7 +137,7 @@ class Thermostat(object):
         ndim = dof // natoms
 
         mvec = np.repeat(masses, ndim)
-        beta = temperature_to_beta(self.temperature)
+        beta_n = temperature_to_beta(self.temperature)
         k_B_Hartree = 1.0 / temperature_to_beta(1.0)
 
         # Standard deviation of the Maxwell-Boltzmann distribution

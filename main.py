@@ -30,7 +30,9 @@ geometry_file = parse_file_field(inp["geometry_file"])
 velocity_file = parse_file_field(inp.get("velocity_file", None))
 n_beads = inp["n_beads"]
 system_temperature = inp["temperature"]
+print(f"System temperature: {system_temperature} K")
 simulation_temperature = system_temperature * n_beads  # PIMD temperature
+print(f"Simulation temperature: {simulation_temperature} K")
 timestep = inp["timestep"]
 #timestep = 0.5
 n_steps = inp["n_steps"]
@@ -73,8 +75,7 @@ simulation.run_PIMD(n_steps)
 #simulation.run_PIMC_adaptive_staging(n_steps)
 
 # Constantes físicas en unidades atómicas
-kB_Hartree_per_K = 3.166811563e-6  # Boltzmann en Hartree/K
-hbar = 1.0  # En unidades atómicas
+
 
 def classical_PE(T, K, ndim):
     """
@@ -83,7 +84,7 @@ def classical_PE(T, K, ndim):
     K : constante del resorte en Hartree/bohr²
     ndim : número de dimensiones
     """
-    beta = 1 / (kB_Hartree_per_K * T)
+    beta = temperature_to_beta(T)
     return ndim / (2 * beta)
 
 def quantum_PE(T, K, ndim, m=1837.1526):
@@ -95,8 +96,8 @@ def quantum_PE(T, K, ndim, m=1837.1526):
     m : masa en unidades atómicas (por defecto: protón)
     """
     omega = np.sqrt(K / m)
-    beta = 1 / (kB_Hartree_per_K * T)
-    return ndim * (0.5 * hbar * omega / np.tanh(0.5 * beta * hbar * omega))
+    beta = temperature_to_beta(T)
+    return ndim * (0.5 * omega / np.tanh(0.5 * beta * omega))
 
 T = 300  # Kelvin
 K = 1.0  # Hartree/bohr²
@@ -104,3 +105,4 @@ ndim = 1
 
 print("Clásica:", classical_PE(T, K, ndim))
 print("Cuántica:", quantum_PE(T, K, ndim))
+

@@ -22,7 +22,6 @@ class Simulation(object):
         self.timestep = timestep
         self.temperature = temperature    
         self.thermostat = thermostat
-        print('Thermostat: ', thermostat)
         self.mode = mode
         self.prefix = prefix
         self.system = system
@@ -32,16 +31,15 @@ class Simulation(object):
         init_q = system.positions
         init_v = system.velocities
         init_qc = system.q_centroid
-        init_vc = system.v_centroid
         masses = system.masses
         init_f, init_potential_energies = self.force_field.eq_force_function(init_q,self.n_beads,n_atoms,n_dim)
         init_system_T = instantaneous_temperature(init_v,masses,self.n_beads,n_atoms,n_dim)
-        #init_system_T = beta_to_temperature(init_system_T)
         init_kin = classical_kinetic_energy(init_v, masses, n_atoms, n_dim)/self.n_beads
         init_internal_pot = Internal_Potential(init_q,self.temperature,masses,self.n_beads,n_atoms,n_dim)/self.n_beads
         init_external_pot = classical_potential_energy(init_potential_energies)/self.n_beads 
         init_pot = init_external_pot + init_internal_pot
-        init_E_tot, init_E_kin, init_E_pot = E_Estimators(temperature, init_f, init_q, init_qc, init_potential_energies,self.n_beads, n_atoms, n_dim)
+        
+        init_E_kin, init_E_pot, init_E_tot = E_Estimators(temperature, init_f, init_q, init_qc, init_potential_energies,self.n_beads, n_atoms, n_dim)
         self.system.set_forces(init_f)
         self.system.set_pot(init_pot)
         self.system.set_kin(init_kin)
@@ -51,10 +49,51 @@ class Simulation(object):
         self.system.set_E_tot(init_E_tot)
         self.system.set_potential_energies(init_potential_energies)
         self.system.set_Temperature(init_system_T)
-        print(f"Using thermostat type: {self.thermostat.thermostat_type} with tau = {self.thermostat.tau}")
 
 
     def run_PIMD(self,nsteps):
+        
+        counter = 0
+        time_counter = 0
+        
+        #Call the integrator
+        integrator = Integrator(self.temperature,self.timestep,self.force_field,self.mode)
+        
+        #Call the file recorder        
+        rec = Recorder(self.system,self.prefix)
+        rec.write(self.system,counter,time_counter,record_energies=True,
+                  record_estimators=True,
+                  record_bead_positions=[0,1,2,3,4,5,6,7],
+                  record_bead_velocities=[0,1,2,3,4,5,6,7],
+                  record_centroid_position=True,
+                  record_centroid_velocity=True)
+
+        while counter < nsteps:
+            
+            if counter%100000 == 0:
+                print('Step: ',counter)
+
+            #print('velocities before: ',self.system.velocities)
+            if str(self.thermostat.thermostat_type) == 'PILE_L':
+                integrator.step_PILE_L(self.system,self.thermostat)
+            elif str(self.thermostat.thermostat_type) == 'PILE_G':
+                integrator.step_PILE_G(self.system,self.thermostat)
+            elif str(self.thermostat.thermostat_type) == 'Andersen':
+                integrator.step_Andersen(self.system,self.thermostat)                    
+            else:
+                integrator.step_NVE(self.system)
+            
+            counter += 1   
+            time_counter += self.timestep
+            
+            rec.write(self.system,counter,time_counter,record_energies=True,
+                  record_estimators=True,
+                  record_bead_positions=[0,1,2,3,4,5,6,7],
+                  record_bead_velocities=[0,1,2,3,4,5,6,7],
+                  record_centroid_position=True,
+                  record_centroid_velocity=True)
+            
+    def run_SPIMD(self,nsteps):
         
         counter = 0
         time_counter = 0
@@ -73,45 +112,33 @@ class Simulation(object):
 
         while counter < nsteps:
             
-            #if counter%100000 == 0:
-            #    print('Step: ',counter)
-            #print('velocities before: ',self.system.velocities)
-            if str(self.thermostat.thermostat_type) == 'PILE_L':
-                integrator.step_PILE_L(self.system,self.thermostat)
-            elif str(self.thermostat.thermostat_type) == 'PILE_G':
-                integrator.step_PILE_G(self.system,self.thermostat)
-            elif str(self.thermostat.thermostat_type) == 'Andersen':
-                integrator.step_Andersen(self.system,self.thermostat)                    
-            else:
-                integrator.step_NVE(self.system)
-            #print('velocities after: ',self.system.velocities)
             counter += 1 
 
-            #lambda_t = counter/nsteps
-            #print(lambda_t)
-            #print('input',self.system.get_velocities())
-            #if str(self.thermostat.thermostat_type) == 'PILE_L':
-            #    integrator.step_NVT_L(self.system,self.thermostat,lambda_t)
-                
-            #elif str(self.thermostat.thermostat_type) == 'PILE_G':
-            #    integrator.step_NVT_G(self.system,self.thermostat,lambda_t)
+            lambda_t = counter/nsteps
+            print(lambda_t)
             
-            #elif str(self.thermostat.thermostat_type) == 'Andersen':
-            #    integrator.step_Andersen(self.system,self.thermostat,lambda_t)
+            if counter%100000 == 0:
+                print('Step: ',counter)
+
+            if str(self.thermostat.thermostat_type) == 'PILE_L':
+                integrator.step_PILE_L(self.system,self.thermostat,lambda_t)
                 
-            #else:
-            #    integrator.step_NVE(self.system,lambda_t)
+            elif str(self.thermostat.thermostat_type) == 'PILE_G':
+                integrator.step_PILE_G(self.system,self.thermostat,lambda_t)
+            
+            elif str(self.thermostat.thermostat_type) == 'Andersen':
+                integrator.step_Andersen(self.system,self.thermostat,lambda_t)
                 
-            #print('ouput',self.system.get_velocities())                    
+            else:
+                integrator.step_NVE(self.system,lambda_t)
+
             time_counter += self.timestep
-            #print(self.system.qc)
-            #print(self.system.Temperature)
             rec.write(self.system,counter,time_counter,record_energies=True,
                   record_estimators=True,
                   record_bead_positions=[0,1],
                   record_bead_velocities=[0,1],
                   record_centroid_position=True,
-                  record_centroid_velocity=True)
+                  record_centroid_velocity=True)            
                     
     def run_PIMC(self, n_samples, step_size=0.05):
         """

@@ -7,6 +7,7 @@ class Integrator(object):
         self.timestep    = timestep
         self.force_field = force_field
         self.mode        = mode
+        print('Integrator initialized with temperature:', temperature, 'and timestep:', timestep)
 
     def Propagate_Ring_Polymer(self, p, q, f, n_beads, n_atoms, n_dim, masses):
         dt = self.timestep
@@ -26,12 +27,9 @@ class Integrator(object):
         #print("DEBUG q_nm (pre-prop):", q_nm)
 
         # — 3) Build beta using kB_au, then W[k] using the reference formula —
-        beta = 1.0 / (kB_au * self.temperature)   # temperature in Kelvin to beta in a.u.⁻¹
-        #print(beta,self.temperature)
-        #beta=1
-        #omega_k = build_omega_reference(n_beads, beta, hbar=1.0)
-        #print("DEBUG W_k =", omega_k)
-        omega_k = omega_Cmatrix(n_beads, beta)
+        beta_n = temperature_to_beta(self.temperature)   # temperature in Kelvin to beta in a.u.⁻¹
+        omega_k = omega_Cmatrix(n_beads, beta_n)
+        
         # — 4) Free‐RP propagation in normal modes —
 
         p_nm2, q_nm2 = propagate_normal_modes_general(p_nm, q_nm, omega_k, dt, masses, n_dim)
@@ -62,7 +60,7 @@ class Integrator(object):
         n_atoms = system.n_atoms
         n_beads = system.n_beads
         masses  = system.masses
-
+        
         # Convert velocities to momenta
         p = velocities_to_momenta(v, masses, n_atoms, n_dim)
         

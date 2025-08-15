@@ -255,8 +255,8 @@ def nm2rr(q_nm):
 # Free‐RP propagation block
 # ——————————————————————————————————————
 
-def omega_Cmatrix(Nbeads, beta):
-    Wp = Nbeads / beta
+def omega_Cmatrix(Nbeads, beta_n):
+    Wp = 1 / beta_n
     omega = np.zeros(Nbeads)
     for k in range(1, Nbeads):
         omega[k] = 2.0 * Wp * np.sin(np.pi * k / Nbeads)
@@ -286,7 +286,19 @@ def propagate_normal_modes_general(p_nm, q_nm, omega, dt, masses, n_dim):
                 q_nm2[k, i] = (sin_wdt / (m * w)) * p_nm[k, i] + cos_wdt * q_nm[k, i]
 
     return p_nm2, q_nm2
- 
+
+
+def thermal(Nbeads,Nparticles,Ndim,temperature, masses):
+    dof = Nparticles * Ndim
+    mvec = np.repeat(masses, Ndim)
+    velocities = np.zeros((Nbeads,dof))
+    for p in range(Nbeads):
+        for b in range(dof):
+            m = mvec[b]
+            velocities[p,b] = np.random.normal(loc=0, scale=np.sqrt((temperature*kB_au/m)))
+    return(velocities)
+
+
 def Internal_Potential(q, temperature, masses, n_beads, n_atoms, n_dim):
     """
     Compute internal harmonic potential of the ring polymer.
@@ -305,10 +317,8 @@ def Internal_Potential(q, temperature, masses, n_beads, n_atoms, n_dim):
         Total internal ring-polymer spring energy
     """
     q = q.reshape(-1, n_atoms, n_dim)      # shape (P, N, dim)
-    P = n_beads
-    beta = temperature_to_beta(temperature)
-    #beta = 1
-    omega_P = P / beta                     # ring-polymer frequency
+    beta_n = temperature_to_beta(temperature)
+    omega_P = 1 / beta_n                     # ring-polymer frequency
 
     V_int = 0.0
     for i in range(n_atoms):
@@ -316,12 +326,13 @@ def Internal_Potential(q, temperature, masses, n_beads, n_atoms, n_dim):
         q_i = q[:, i, :]                   # shape (P, dim)
         dq = q_i - np.roll(q_i, shift=1, axis=0)  # cyclic diff: q_p - q_{p-1}, shape (P, dim)
         V_int += 0.5 * m * omega_P**2 * np.sum(dq**2)
-
-    return float(V_int)
+    #print(f"Internal potential energy: {V_int/ n_beads}")
+    return float(V_int)   ###################################double check this
 
 def E_Estimators(temperature, forces, beads_positions, centroids_positions, potential_energies,n_beads, n_atoms, n_dim):
 
-    beta = temperature_to_beta(temperature)
+    beta_n = temperature_to_beta(temperature)
+    beta = beta_n * n_beads  # Total beta for the ring polymer
     #beta = 1
     FQ = 0.0
 
@@ -415,6 +426,7 @@ def classical_potential_energy(potential_energies):
 def compute_energetics(positions,velocities,q_centroid,forces,potential_energies,masses,temperature,n_beads,n_atoms,n_dim):        
     #Classical energies
     internal_pot = Internal_Potential(positions,temperature,masses,n_beads,n_atoms,n_dim)
+    #print("spring", internal_pot)
     external_pot = classical_potential_energy(potential_energies)            
     pot =  (internal_pot + external_pot)/n_beads
     kin = classical_kinetic_energy(velocities,masses,n_atoms,n_dim)/n_beads #Kinetic energy in the system
