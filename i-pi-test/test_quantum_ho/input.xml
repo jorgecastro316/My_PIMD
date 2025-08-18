@@ -1,0 +1,58 @@
+<simulation verbosity='low'>
+   <output prefix='simulation'>
+      <properties filename='out' stride='1' flush='1'> [ step, time, conserved, temperature{kelvin}, kinetic_cv, kinetic_md, potential, spring] </properties>
+      <trajectory filename='pos0' stride='1' bead='0' flush='1'> positions </trajectory>
+      <trajectory filename='pos1' stride='1' bead='1' flush='1'> positions </trajectory>
+      <trajectory filename='pos2' stride='1' bead='2' flush='1'> positions </trajectory>
+      <trajectory filename='pos3' stride='1' bead='3' flush='1'> positions </trajectory>
+      <trajectory filename='pos4' stride='1' bead='4' flush='1'> positions </trajectory>
+      <trajectory filename='pos5' stride='1' bead='5' flush='1'> positions </trajectory>
+      <trajectory filename='pos6' stride='1' bead='6' flush='1'> positions </trajectory>
+      <trajectory filename='pos7' stride='1' bead='7' flush='1'> positions </trajectory>
+      <trajectory filename='vel0' stride='1' bead='0' flush='1'> velocities </trajectory>
+      <trajectory filename='vel1' stride='1' bead='1' flush='1'> velocities </trajectory>
+      <trajectory filename='vel2' stride='1' bead='2' flush='1'> velocities </trajectory>
+      <trajectory filename='vel3' stride='1' bead='3' flush='1'> velocities </trajectory>
+      <trajectory filename='vel4' stride='1' bead='4' flush='1'> velocities </trajectory>
+      <trajectory filename='vel5' stride='1' bead='5' flush='1'> velocities </trajectory>
+      <trajectory filename='vel6' stride='1' bead='6' flush='1'> velocities </trajectory>
+      <trajectory filename='vel7' stride='1' bead='7' flush='1'> velocities </trajectory>
+      <trajectory filename='xc' stride='1' flush='1'> x_centroid </trajectory>
+      <trajectory filename='vc' stride='1' flush='1'> v_centroid </trajectory>
+      <checkpoint stride='4000'/>
+   </output>
+   <total_steps> 10000 </total_steps>
+   <prng><seed>420</seed></prng>
+   <ffsocket name='driver' mode='unix' pbc='false'>
+       <address> f8 </address> 
+   </ffsocket>
+   <system>
+      <initialize nbeads='8'>
+	 <file mode='xyz' > init_pos.xyz </file>
+	 <!--<velocities mode='xyz' bead='0' > init_vel0.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='1' > init_vel1.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='2' > init_vel2.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='3' > init_vel3.xyz </velocities>--> 
+	 <!--<velocities mode='xyz' bead='4' > init_vel4.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='5' > init_vel5.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='6' > init_vel6.xyz </velocities>-->
+	 <!--<velocities mode='xyz' bead='7' > init_vel7.xyz </velocities>-->
+	 <velocities mode='thermal'> 300 </velocities>
+      </initialize>
+      <forces>
+         <force forcefield='driver'> </force> 
+      </forces> 
+      <motion mode='dynamics'>
+	 <fixcom> False </fixcom>
+         <dynamics mode='nvt'>
+	         <timestep units='femtosecond'> 0.1 </timestep>
+			 <thermostat mode="pile_l">
+		         <tau units="femtosecond"> 0.5 </tau>
+			 </thermostat>
+         </dynamics>
+      </motion>
+      <ensemble>
+         <temperature units='kelvin'> 300 </temperature>
+      </ensemble>
+   </system>
+</simulation>

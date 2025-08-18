@@ -48,7 +48,7 @@ time_unit_to_au = {
 # Elements up to Z=100
 atomic_masses_au = {
     'X': 1.0,
-    'H': 1837.1526, 'He': 7294.2995, 'Li': 12653.279, 'Be': 16424.215, 'B': 20061.504,
+    'H': 1836.1526, 'He': 7294.2995, 'Li': 12653.279, 'Be': 16424.215, 'B': 20061.504,
     'C': 21894.659, 'N': 25533.216, 'O': 29160.946, 'F': 32745.987, 'Ne': 36423.773,
     'Na': 41930.789, 'Mg': 43822.297, 'Al': 50203.875, 'Si': 52103.247, 'P': 56446.799,
     'S': 58265.449, 'Cl': 64609.314, 'Ar': 72828.645, 'K': 71032.606, 'Ca': 80205.677,
@@ -345,7 +345,7 @@ def E_Estimators(temperature, forces, beads_positions, centroids_positions, pote
             f = forces[j, i*n_dim:(i+1)*n_dim]
             FQ += np.dot(q - qc, f)
 
-    E_kin = (n_dim * 0.5) / beta - (0.5 / n_beads) * FQ
+    E_kin = (n_atoms*n_dim * 0.5) / beta - (0.5 / n_beads) * FQ
 
     E_pot = float(np.sum(potential_energies))/ n_beads
  
@@ -506,3 +506,24 @@ def momenta_to_velocities(momenta, masses, n_atoms, n_dim):
     v = p / m                                                # v = p/m
     return v.reshape(-1, n_atoms * n_dim)                    # flatten back to (P, N * dim)
 
+def classical_PE(T, K, ndim):
+    """
+    Energía potencial media clásica de un oscilador armónico
+    T : temperatura en Kelvin
+    K : constante del resorte en Hartree/bohr²
+    ndim : número de dimensiones
+    """
+    beta = temperature_to_beta(T)
+    return ndim / (2 * beta)
+
+def quantum_PE(T, K, ndim, m=1836.1526):
+    """
+    Energía potencial media cuántica de un oscilador armónico
+    T : temperatura en Kelvin
+    K : constante del resorte en Hartree/bohr²
+    ndim : número de dimensiones
+    m : masa en unidades atómicas (por defecto: protón)
+    """
+    omega = np.sqrt(K / m)
+    beta = temperature_to_beta(T)
+    return ndim * (0.25 * omega / np.tanh(0.5 * beta * omega))

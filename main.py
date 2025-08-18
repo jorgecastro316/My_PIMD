@@ -49,12 +49,12 @@ rng = np.random.mtrand.RandomState(seed)
 #Set the system
 system = System(geometry_file, n_beads, rng, velocity_file, simulation_temperature)
 print(f"System initialized with {system.n_atoms} atoms, {system.n_beads} beads, and {system.n_dim} dimensions.")
-print(f"Initial positions: {system.positions}",np.shape(system.positions))
-print(f"Initial velocities: {system.velocities}",np.shape(system.velocities))
-print(f"Initial centroid positions: {system.q_centroid}",np.shape(system.q_centroid))
-print(f"Initial centroid velocities: {system.v_centroid}",np.shape(system.v_centroid))
-print(f"Initial masses: {system.masses}",np.shape(system.masses))
-print(f"Initial forces: {system.forces}",np.shape(system.forces))
+#print(f"Initial positions: {system.positions}",np.shape(system.positions))
+#print(f"Initial velocities: {system.velocities}",np.shape(system.velocities))
+#print(f"Initial centroid positions: {system.q_centroid}",np.shape(system.q_centroid))
+#print(f"Initial centroid velocities: {system.v_centroid}",np.shape(system.v_centroid))
+#print(f"Initial masses: {system.masses}",np.shape(system.masses))
+#print(f"Initial forces: {system.forces}",np.shape(system.forces))
 
 #Set the force field
 
@@ -67,41 +67,15 @@ thermostat = Thermostat(simulation_temperature,tau,thermostat_type,rng)
 simulation = Simulation(system,simulation_temperature,timestep,force_field,thermostat,prefix)
 
 #Run simulation
-simulation.run_PIMD(n_steps)
-#simulation.run_PIMC(n_steps)
-#simulation.run_PIMC_adaptive(n_steps)
-#simulation.run_PIMC_adaptive_advanced(n_steps)
 
-#simulation.run_PIMC_adaptive_staging(n_steps)
+#simulation.run_PIMD(n_steps)
+simulation.run_PIMC(n_steps,record_bead_positions=[0,1])
+#simulation.run_PIMC_adaptive(n_steps,record_bead_positions=[0])
+#simulation.run_PIMC_enhanced(n_steps,record_bead_positions=[0])
 
-# Constantes físicas en unidades atómicas
-
-
-def classical_PE(T, K, ndim):
-    """
-    Energía potencial media clásica de un oscilador armónico
-    T : temperatura en Kelvin
-    K : constante del resorte en Hartree/bohr²
-    ndim : número de dimensiones
-    """
-    beta = temperature_to_beta(T)
-    return ndim / (2 * beta)
-
-def quantum_PE(T, K, ndim, m=1837.1526):
-    """
-    Energía potencial media cuántica de un oscilador armónico
-    T : temperatura en Kelvin
-    K : constante del resorte en Hartree/bohr²
-    ndim : número de dimensiones
-    m : masa en unidades atómicas (por defecto: protón)
-    """
-    omega = np.sqrt(K / m)
-    beta = temperature_to_beta(T)
-    return ndim * (0.5 * omega / np.tanh(0.5 * beta * omega))
-
-T = 300  # Kelvin
-K = 1.0  # Hartree/bohr²
-ndim = 1
+T = system_temperature
+K = 1
+ndim = system.n_dim
 
 print("Clásica:", classical_PE(T, K, ndim))
 print("Cuántica:", quantum_PE(T, K, ndim))

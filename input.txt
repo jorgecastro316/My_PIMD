@@ -1,12 +1,12 @@
 # Minimal working PIMD input file
-geometry_file init1.xyz 
-#velocity_file init_vel1.xyz
+geometry_file init_pos.xyz 
+#velocity_file init_vel0.xyz init_vel1.xyz init_vel2.xyz init_vel3.xyz init_vel4.xyz init_vel5.xyz init_vel6.xyz init_vel7.xyz
 temperature 300
-n_beads 8
+n_beads 1
 timestep 0.1 fs
-n_steps 500000
+n_steps 1000000
 force harmonic 1
 prefix simulation
 seed 420
-thermostat PILE_G
+thermostat PILE_L
 tau 0.5 fs

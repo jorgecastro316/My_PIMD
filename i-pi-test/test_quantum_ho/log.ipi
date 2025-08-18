@@ -1,0 +1,77 @@
+
+ ____       ____       ____       ____
+/    \     /    \     /    \     /    \
+|  #################################  |
+\__#_/     \____/     \____/     \_#__/
+   #    _        _______  _____    #
+   #   (_)      |_   __ \|_   _|   #      -*-   v unknown  -*-
+   #   __  ______ | |__) | | |     #
+   Y  [  ||______||  ___/  | |     #      A Universal Force Engine
+  0 0  | |       _| |_    _| |_    #
+   #  [___]     |_____|  |_____|   #
+ __#_       ____       ____       _#__
+/  # \     /    \     /    \     / #  \
+|  #################################  |
+\____/     \____/     \____/     \____/
+
+    
+# Git information:
+#    i-PI version: unknown
+#      Remote URL: https://github.com/sabia-group/i-pi.git
+#          Branch: morse                   
+#     Last Commit: 37d66458f7e424bdc76344eea33e21456921e220
+#
+# Simulation information:
+#           Machine Name: manhattan316
+#      Working Directory: /home/castrojo/Desktop/MPSD/random_PIMD/i-pi-test/test_quantum_ho
+#          Date and Time: 2025-08-15 09:44:05
+
+ @system: Initializing system object 
+ @simulation: Initializing simulation object 
+@ RANDOM SEED: The seed used in this calculation was 420
+ @init_file: Initializing from file init_pos.xyz. Dimension: length, units: automatic, cell_units: automatic
+ @set_vector: Initialize is rescaling from     1 beads to     8 beads
+ @init_file: Initializing from file init_pos.xyz. Dimension: length, units: automatic, cell_units: automatic
+ @init_file: Initializing from file init_pos.xyz. Dimension: length, units: automatic, cell_units: automatic
+ @init_file: Initializing from file init_pos.xyz. Dimension: length, units: automatic, cell_units: automatic
+ @init_file: Initializing from file init_pos.xyz. Dimension: length, units: automatic, cell_units: automatic
+ @initializer: Resampling velocities at temperature 300.0 automatic
+ @system.bind: Binding the forces 
+ @ForceField (driver): Starting the polling thread main loop.
+ @open_backup: Backup performed: simulation.out -> #simulation.out#1#
+ @open_backup: Backup performed: simulation.pos0_0.xyz -> #simulation.pos0_0.xyz#1#
+ @open_backup: Backup performed: simulation.pos1_1.xyz -> #simulation.pos1_1.xyz#1#
+ @open_backup: Backup performed: simulation.pos2_2.xyz -> #simulation.pos2_2.xyz#1#
+ @open_backup: Backup performed: simulation.pos3_3.xyz -> #simulation.pos3_3.xyz#1#
+ @open_backup: Backup performed: simulation.pos4_4.xyz -> #simulation.pos4_4.xyz#1#
+ @open_backup: Backup performed: simulation.pos5_5.xyz -> #simulation.pos5_5.xyz#1#
+ @open_backup: Backup performed: simulation.pos6_6.xyz -> #simulation.pos6_6.xyz#1#
+ @open_backup: Backup performed: simulation.pos7_7.xyz -> #simulation.pos7_7.xyz#1#
+ @open_backup: Backup performed: simulation.vel0_0.xyz -> #simulation.vel0_0.xyz#1#
+ @open_backup: Backup performed: simulation.vel1_1.xyz -> #simulation.vel1_1.xyz#1#
+ @open_backup: Backup performed: simulation.vel2_2.xyz -> #simulation.vel2_2.xyz#1#
+ @open_backup: Backup performed: simulation.vel3_3.xyz -> #simulation.vel3_3.xyz#1#
+ @open_backup: Backup performed: simulation.vel4_4.xyz -> #simulation.vel4_4.xyz#1#
+ @open_backup: Backup performed: simulation.vel5_5.xyz -> #simulation.vel5_5.xyz#1#
+ @open_backup: Backup performed: simulation.vel6_6.xyz -> #simulation.vel6_6.xyz#1#
+ @open_backup: Backup performed: simulation.vel7_7.xyz -> #simulation.vel7_7.xyz#1#
+ @open_backup: Backup performed: simulation.xc.xyz -> #simulation.xc.xyz#1#
+ @open_backup: Backup performed: simulation.vc.xyz -> #simulation.vc.xyz#1#
+ @open_backup: Backup performed: simulation.restart -> #simulation.restart#1#
+ @interfacesocket.pool_update:   Client asked for connection from . Now hand-shaking.
+ @interfacesocket.pool_update:   Handshaking was successful. Added to the client list.
+ @simulation.run: Average timings at MD step       0. t/step: 1.90408e-02
+ @simulation.run: Average timings at MD step    1000. t/step: 1.74238e-02
+ @simulation.run: Average timings at MD step    2000. t/step: 1.47005e-02
+ @simulation.run: Average timings at MD step    3000. t/step: 1.50470e-02
+ @simulation.run: Average timings at MD step    4000. t/step: 1.53166e-02
+ @simulation.run: Average timings at MD step    5000. t/step: 1.47954e-02
+ @simulation.run: Average timings at MD step    6000. t/step: 1.70567e-02
+ @simulation.run: Average timings at MD step    7000. t/step: 1.79905e-02
+ @simulation.run: Average timings at MD step    8000. t/step: 1.82363e-02
+ @simulation.run: Average timings at MD step    9000. t/step: 1.82941e-02
+ @softexit.trigger:  SOFTEXIT CALLED FROM THREAD <_MainThread(MainThread, started 140026776760704)>  @ SIMULATION: Exiting cleanly.
+ !W! Soft exit has been requested with message: ' @ SIMULATION: Exiting cleanly. I-PI reports success. Restartable as is: NO.'. Cleaning up.
+ @interfacesocket.close: Shutting down the driver interface.
+ @simulation.softexit: Saving the latest status at the end of the step
+ @open_backup: Backup performed: RESTART -> #RESTART#1#

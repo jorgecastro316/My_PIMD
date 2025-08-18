@@ -1,0 +1,38 @@
+<simulation verbosity='low'>
+   <output prefix='simulation'>
+      <properties filename='out' stride='1' flush='1'> [ step, time, conserved, temperature{kelvin}, kinetic_cv, kinetic_md, potential] </properties>
+      <trajectory filename='pos1' stride='1' bead='0' flush='1'> positions </trajectory>
+      <trajectory filename='vel1' stride='1' bead='0' flush='1'> velocities </trajectory>
+      <trajectory filename='xc' stride='1' flush='1'> x_centroid </trajectory>
+      <trajectory filename='vc' stride='1' flush='1'> v_centroid </trajectory>
+      <checkpoint stride='4000'/>
+   </output>
+   <total_steps> 10000 </total_steps>
+   <prng><seed>420</seed></prng>
+   <ffsocket name='driver' mode='unix' matching='any' pbc='false'>
+       <address> f1 </address> 
+   </ffsocket>
+   <system>
+      <initialize nbeads='1'>
+	 <file mode='xyz' > init_pos.xyz </file>
+	 <velocities mode='xyz' > init_vel.xyz </velocities>
+	 <!--<velocities mode='xyz' bead='1' > init_vel2.xyz </velocities>-->
+	 <!--<velocities mode='thermal'> 300 </velocities>-->
+      </initialize>
+      <forces>
+         <force forcefield='driver'> </force> 
+      </forces> 
+      <motion mode='dynamics'>
+	 <fixcom> False </fixcom>
+         <dynamics mode='nve'>
+	         <timestep units='femtosecond'> 0.1 </timestep>
+			 <!--<thermostat mode="pile_l">-->
+		         <!--<tau units="femtosecond"> 1 </tau>-->
+				 <!--</thermostat>-->
+         </dynamics>
+      </motion>
+      <ensemble>
+         <temperature units='kelvin'> 300 </temperature>
+      </ensemble>
+   </system>
+</simulation>
