@@ -1,1 +1,56 @@
-__pycache__/\n*.pyc\n*.xyz\n*.traj\n
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments and local tooling
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.vscode/
+
+# Generated simulation output
+*.out
+*.err
+*.log
+*.traj
+*.restart
+*.work
+*.work.out
+\#RESTART\#*
+
+# Generated coordinates and initial conditions copied into run directories
+*.xyz
+!examples/**/*.xyz
+
+# Active-learning data, models, and checkpoints
+data/
+data_old/
+model/
+models/
+checkpoints/
+logs/
+plots/
+*.npy
+*.npz
+*.pt
+*.pth
+*.pkl
+*.joblib
+
+# Generated figures and notebook state
+*.png
+*.pdf
+.ipynb_checkpoints/
+
+# Local run directories
+i-pi-test/
+run_*/
+slurm-*
+job_*
+
+# Large archived calculations are not repository tests
+tests/generated/

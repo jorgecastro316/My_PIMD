@@ -1,0 +1,16 @@
+# Short deterministic PIMD smoke calculation
+geometry_file examples/harmonic/init.xyz
+velocity_file examples/harmonic/init_vel.xyz
+temperature 300
+n_beads 8
+timestep 0.1 fs
+n_steps 20
+force harmonic 0.01
+prefix harmonic_smoke
+seed 420
+thermostat PILE_L
+tau 10 fs
+stride_out 5
+stride_pos 5
+stride_vel 5
+stride_log 5

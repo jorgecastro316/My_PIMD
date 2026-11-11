@@ -1,0 +1,17 @@
+geometry_file examples/active_learning/forward/init_pos.xyz
+temperature 315775.0248
+n_beads 8
+timestep 0.001 au
+n_steps 10000
+force1 double_well 5
+force2 double_well_asym 5
+prefix simulation
+seed 420
+thermostat NVE
+tau 0.001 au
+
+#Stride in steps
+stride_out 1
+stride_pos 1
+stride_vel 0
+stride_log 10000

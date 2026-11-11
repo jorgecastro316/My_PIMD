@@ -1,0 +1,26 @@
+geometry_file init_pos.xyz
+temperature 315775.0248
+n_beads 8
+timestep 0.001 au
+n_steps 1000
+force2 double_well 5
+force1 double_well_asym 5
+prefix simulation
+seed 316
+thermostat PILE_L
+tau 0.001 au
+
+#Stride in steps
+stride_out 1
+stride_pos 0
+stride_vel 0
+stride_log 10000
+
+#NEQ_PIMD params
+sample_steps 1000
+n_steps_child 50
+thermostat_child NVE
+tau_child 1
+stride_out_child 0
+stride_pos_child 0
+stride_vel_child 0

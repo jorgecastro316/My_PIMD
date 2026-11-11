@@ -1,9 +1,0 @@
-# Minimal working PIMD input file
-geometry_file init.xyz
-velocity_file init_vel.xyz
-temperature 300
-n_beads 1
-timestep 1 fs
-n_steps 10
-force harmonic 1
-

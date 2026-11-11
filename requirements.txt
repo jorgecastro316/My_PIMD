@@ -1,0 +1,10 @@
+numpy
+numba
+scipy
+matplotlib
+scikit-learn
+joblib
+ase
+pymbar
+torch
+gpytorch
