@@ -3,7 +3,7 @@
 This repo is a research sandbox for developing and testing nonequilibrium
 methods for quantum free-energy calculations. It includes the supporting
 path-integral machinery: PIMD, thermostats, PIMC, nonequilibrium switching,
-and an experimental Gaussian-process active-learning workflow.
+and an experimental Gaussian-process regression active-learning workflow.
 
 This is the branch currently under development. The code has been cleaned up,
 consolidated, and optimized with Numba, so I recommend using it instead of
@@ -14,14 +14,14 @@ here looks suspicious.
 ## Implemented methods
 
 - Path-integral molecular dynamics (PIMD) with NVE, Andersen, PILE-L, and
-  PILE-G propagation routes.
+  PILE-G propagation.
 - Switching PIMD (SPIMD) and parent/child non-equilibrium switching.
 - Basic, adaptive, and enhanced path-integral Monte Carlo (PIMC).
 - Harmonic, shifted harmonic, anisotropic harmonic, double-well, asymmetric
   double-well, and Morse-plus-harmonic model potentials.
-- BAR, Crooks, convergence, autocorrelation, and analytical model diagnostics.
+- BAR, Crooks, convergence, autocorrelation, and analytical model diagnostics for free energy difference calculations.
 - A GPyTorch controller for uncertainty-guided selection of switching
-  trajectories and iterative free-energy estimation.
+  trajectories and iterative free-energy estimation using GPR.
 
 
 
