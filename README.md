@@ -1,11 +1,10 @@
-# Non-equilibrium path-integral simulations
+# Nonequilibrium path-integral methods for quantum free energies
 
-This repository contains research code for equilibrium and non-equilibrium
-path-integral simulations, free-energy estimation, and an experimental
-Gaussian-process active-learning workflow. It consolidates the previously
-separate `efficient_PIMD`, `random_PIMD`, `full_NE_PIMD`, `GPR_NE_MD`, and
-`GPR_NE_PIMD` development copies. Generated trajectories, trained models, and
-archived run directories are intentionally not versioned.
+This repo is a research sandbox for developing and testing
+nonequilibrium methods for quantum free-energy calculations. It provides the
+supporting path-integral machinery—including PIMD, thermostatting, PIMC,
+nonequilibrium switching protocols, and an experimental Gaussian-process
+active-learning workflow—needed to construct and evaluate these methods.
 
 ## Implemented methods
 
@@ -14,25 +13,12 @@ archived run directories are intentionally not versioned.
 - Switching PIMD (SPIMD) and parent/child non-equilibrium switching.
 - Basic, adaptive, and enhanced path-integral Monte Carlo (PIMC).
 - Harmonic, shifted harmonic, anisotropic harmonic, double-well, asymmetric
-  double-well, Morse-plus-harmonic, and zero-force model potentials.
+  double-well, and Morse-plus-harmonic model potentials.
 - BAR, Crooks, convergence, autocorrelation, and analytical model diagnostics.
 - A GPyTorch controller for uncertainty-guided selection of switching
   trajectories and iterative free-energy estimation.
 
-## Current status
 
-The core is a working research prototype rather than a production simulation
-package. Short smoke tests currently pass for one- and multi-bead PIMD, SPIMD,
-non-equilibrium parent/child switching, basic PIMC, adaptive PIMC, and enhanced
-PIMC. The Morse-plus-harmonic force has also been checked against finite
-differences. Longer archived PILE-L and active-learning runs completed before
-the generated data were removed during repository consolidation.
-
-The complete active-learning loop has produced results in the original working
-directories, but it has not yet been rerun end to end from this cleaned layout.
-The BAR/Crooks/GPR estimates should be validated against analytical systems or
-an independent reference implementation before they are treated as final
-scientific results.
 
 ## Repository layout
 
@@ -97,23 +83,39 @@ bash active_learning.sh
 
 Example switching inputs are stored in `examples/active_learning`. The Slurm
 resource directives and numerical parameters at the top of
-`active_learning.sh` remain research defaults and should be reviewed for each
-machine and physical system.
+`active_learning.sh` remain research defaults used in the MPSD cluster  
+(should be checked for each machine and physical system)
 
-## Generated-data policy
+## Current status
 
-Simulation output, trajectories, restart files, NumPy datasets, trained models,
-figures, logs, and checkpoints are excluded by `.gitignore`. Keep large run
-data outside the repository or in ignored directories. Only source code, small
-input examples, documentation, and deterministic regression tests should be
-committed.
+The core is a working research prototype rather than a production simulation
+package. Short smoke tests currently pass for one- and multi-bead PIMD, SPIMD,
+non-equilibrium parent/child switching, basic PIMC, adaptive PIMC, and enhanced
+PIMC. The Morse-plus-harmonic force has also been checked against finite
+differences. 
 
-## Known limitations
 
-- There is not yet a stable public Python API or packaged command-line tool.
-- The entry-point scripts still print verbose internal state.
-- The automated tests cover core mechanics but not long-time convergence or
-  the full active-learning loop.
-- Cluster submission settings and convergence parameters require
-  system-specific choices.
-- No license has yet been selected.
+## Current status
+
+This repository is a working research prototype rather than a
+production-ready simulation package. The included short smoke tests pass for
+one- and multi-bead PIMD, SPIMD, nonequilibrium parent–child switching, and the
+basic, adaptive, and enhanced PIMC workflows. The analytical forces for the
+Morse-plus-harmonic model also agree with finite-difference derivatives.
+
+These checks establish basic execution and internal consistency, but not
+long-time convergence or quantitative physical accuracy.
+
+## Current limitations
+
+- The entry-point scripts still produce verbose debugging output.
+- Automated tests cover the core mechanics but not long-time convergence or
+  the complete active-learning workflow.
+- Cluster submission settings and convergence parameters must be selected for
+  each system and computing environment.
+
+## ToDo
+
+- Implement and validate quantum free-energy calculations using an
+  Einstein-solid reference, both with direct evaluations and with
+  Gaussian-process-regression (GPR) predictions.
