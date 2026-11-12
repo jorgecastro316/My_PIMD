@@ -1,10 +1,15 @@
 # Nonequilibrium path-integral methods for quantum free energies
 
-This repo is a research sandbox for developing and testing
-nonequilibrium methods for quantum free-energy calculations. It provides the
-supporting path-integral machinery—including PIMD, thermostatting, PIMC,
-nonequilibrium switching protocols, and an experimental Gaussian-process
-active-learning workflow—needed to construct and evaluate these methods.
+This repo is a research sandbox for developing and testing nonequilibrium
+methods for quantum free-energy calculations. It includes the supporting
+path-integral machinery: PIMD, thermostats, PIMC, nonequilibrium switching,
+and an experimental Gaussian-process active-learning workflow.
+
+This is the branch currently under development. The code has been cleaned up,
+consolidated, and optimized with Numba, so I recommend using it instead of
+`main` for new work. The integrators and thermostats in `main`, however, were
+curated in the Group, so that branch remains the trusted reference if something
+here looks suspicious.
 
 ## Implemented methods
 
@@ -86,31 +91,9 @@ resource directives and numerical parameters at the top of
 `active_learning.sh` remain research defaults used in the MPSD cluster  
 (should be checked for each machine and physical system)
 
-## Current status
-
-The core is a working research prototype rather than a production simulation
-package. Short smoke tests currently pass for one- and multi-bead PIMD, SPIMD,
-non-equilibrium parent/child switching, basic PIMC, adaptive PIMC, and enhanced
-PIMC. The Morse-plus-harmonic force has also been checked against finite
-differences. 
-
-
-## Current status
-
-This repository is a working research prototype rather than a
-production-ready simulation package. The included short smoke tests pass for
-one- and multi-bead PIMD, SPIMD, nonequilibrium parent–child switching, and the
-basic, adaptive, and enhanced PIMC workflows. The analytical forces for the
-Morse-plus-harmonic model also agree with finite-difference derivatives.
-
-These checks establish basic execution and internal consistency, but not
-long-time convergence or quantitative physical accuracy.
-
 ## Current limitations
 
 - The entry-point scripts still produce verbose debugging output.
-- Automated tests cover the core mechanics but not long-time convergence or
-  the complete active-learning workflow.
 - Cluster submission settings and convergence parameters must be selected for
   each system and computing environment.
 
